@@ -54,7 +54,7 @@ public class CSPSolver {
 	    				return result;
 	    			}	
 	    		}
-	    		meetingsAssigned.remove(domainValue);
+	    		meetingsAssigned.remove(meetingsAssigned.size() - 1);
 	    	}
     	}
     	return null;	
@@ -69,7 +69,6 @@ public class CSPSolver {
     	for(DateConstraint constraint : constraints) {
     		//if Urnary
     		if(constraint.ARITY == 1) {
-    			//checkunary)
     			UnaryDateConstraint newUnaryConst = (UnaryDateConstraint)constraint;
     			LocalDate r = newUnaryConst.R_VAL; 
     			int l = constraint.L_VAL;
@@ -87,13 +86,13 @@ public class CSPSolver {
     			int r = newBinaryConst.R_VAL;
     			int l = constraint.L_VAL;
     			//assignment doesn't satisfy constraints
-    			if(meeting.size() > r) {
+    			if(meeting.size() > r && meeting.size() >l) {
 	    			if(!(constraint.isSatisfiedBy(meeting.get(l), meeting.get(r)))) {
 	    				return false;
 	    			}
-    			}
-    		}
     				
+    			}
+    		}		
     	}
     	return true;
     }
