@@ -3,6 +3,8 @@ package main.csp;
 import java.time.LocalDate;
 import java.util.*;
 
+import test.csp.CSPTests;
+
 /**
  * CSP: Calendar Satisfaction Problem Solver
  * Provides a solution for scheduling some n meetings in a given
@@ -27,9 +29,74 @@ public class CSPSolver {
      */
     public static List<LocalDate> solve (int nMeetings, LocalDate rangeStart, LocalDate rangeEnd, Set<DateConstraint> constraints) {
         // [!] TODO!
-        throw new UnsupportedOperationException();
+    
+    	//List<MeetingDomain> domainForEachMeeting = new ArrayList<>();
+    	//MeetingDomain domain =  new MeetingDomain(rangeStart, rangeEnd);
+    	List<LocalDate> meetings = new ArrayList<>();
+    	List<MeetingDomain> domains = CSPTests.generateDomains(nMeetings, rangeStart, rangeEnd);
+        return backTrack(domains, meetings, nMeetings, constraints );
     }
     
+    //recursiveBacktracking
+    private static List<LocalDate> backTrack (List<MeetingDomain> domainForEachMeeting, List<LocalDate> meetingsAssigned,int nMeetings, Set<DateConstraint> constraints){
+    	if(meetingsAssigned.size() == nMeetings && isConsistent(constraints, meetingsAssigned)) {
+    		return meetingsAssigned;
+    	}	
+    	for(MeetingDomain thisMeeting : domainForEachMeeting) {
+	    	for(LocalDate domainValue : thisMeeting.domainValues) {
+	    		meetingsAssigned.add(domainValue);
+	    		if(isConsistent(constraints, meetingsAssigned)) {
+	    				//add first and then check the consistent, if true, rest of pseudo is the same
+	    				//else, remove
+	    				//meetingsAssigned.add(domainValue);
+	    			List<LocalDate> result = backTrack(domainForEachMeeting, meetingsAssigned, nMeetings, constraints);
+	    			if(result != null) {
+	    				return result;
+	    			}	
+	    		}
+	    		meetingsAssigned.remove(domainValue);
+	    	}
+    	}
+    	return null;	
+    }
+    /**
+     * Private method to check consistency of our meeting with the constraints 
+     * @param constraints
+     * @param meeting
+     * @return
+     */
+    private static boolean isConsistent(Set<DateConstraint> constraints, List<LocalDate> meeting) {
+    	for(DateConstraint constraint : constraints) {
+    		//if Urnary
+    		if(constraint.ARITY == 1) {
+    			//checkunary)
+    			UnaryDateConstraint newUnaryConst = (UnaryDateConstraint)constraint;
+    			LocalDate r = newUnaryConst.R_VAL; 
+    			int l = constraint.L_VAL;
+    			//assignment doesn't satisfy constraints
+    			if(meeting.size() > l) {
+	    			if(!(constraint.isSatisfiedBy(meeting.get(l), r))) {
+	    	
+	    				return false;
+	    			}
+    			}
+    		}
+    		//if Binary
+    		if(constraint.ARITY == 2) {
+    			BinaryDateConstraint newBinaryConst = (BinaryDateConstraint)constraint;
+    			int r = newBinaryConst.R_VAL;
+    			int l = constraint.L_VAL;
+    			//assignment doesn't satisfy constraints
+    			if(meeting.size() > r) {
+	    			if(!(constraint.isSatisfiedBy(meeting.get(l), meeting.get(r)))) {
+	    				return false;
+	    			}
+    			}
+    		}
+    				
+    	}
+    	return true;
+    }
     
     // Filtering Operations
     // --------------------------------------------------------------------------------------------------------------
