@@ -109,8 +109,23 @@ public class CSPSolver {
      *     the *unary* constraints! 
      */
     public static void nodeConsistency (List<MeetingDomain> varDomains, Set<DateConstraint> constraints) {
-        // [!] TODO!
-        throw new UnsupportedOperationException();
+    	Set<LocalDate> result = new HashSet<>();
+    	for(DateConstraint constraint : constraints) {
+    		if(constraint.ARITY == 1) {
+    		UnaryDateConstraint unaryDateConstraint = (UnaryDateConstraint)constraint;
+    		LocalDate r = unaryDateConstraint.R_VAL; 
+			int l = unaryDateConstraint.L_VAL;
+    		MeetingDomain newDomain = varDomains.get(l);
+	    	for(LocalDate date : newDomain.domainValues ) {
+	    		if((unaryDateConstraint.isSatisfiedBy(date, r))) {
+	    			result.add(date);
+	    		}	
+	    	} 
+    		
+	    	newDomain.domainValues = result;
+	    	result = new HashSet<>();
+    		}
+    	}
     }
     
     /**
@@ -122,10 +137,60 @@ public class CSPSolver {
      *     the *binary* constraints using the AC-3 algorithm! 
      */
     public static void arcConsistency (List<MeetingDomain> varDomains, Set<DateConstraint> constraints) {
-        // [!] TODO!
-        throw new UnsupportedOperationException();
+        
+    	Set<Arc> queueOfArc = new HashSet<>();
+    	//Generate arcs for each date constraint
+    	for(DateConstraint constraint:constraints) {
+    		if(constraint.ARITY == 2) {
+    			BinaryDateConstraint newBinaryConstraint = (BinaryDateConstraint)constraint;
+    			int l = newBinaryConstraint.L_VAL;
+    			int r = newBinaryConstraint.R_VAL;
+    			Arc arc1 = new Arc(l, r, newBinaryConstraint);
+    			Arc arc2 = new Arc(r, l, newBinaryConstraint);
+    			queueOfArc.add(arc1);
+    			queueOfArc.add(arc2);	
+    		}
+    	}
+    	while (!queueOfArc.isEmpty()) {
+			Arc removedItem = queueOfArc.iterator().next();
+			queueOfArc.remove(removedItem);	
+	    	if(removeInconsistentValues(varDomains, removedItem)){
+		    	for(DateConstraint constraint : constraints) {
+		    		if(constraint.ARITY == 2) {
+    					BinaryDateConstraint binaryConst = (BinaryDateConstraint)constraint;
+    					if(binaryConst.L_VAL == removedItem.TAIL || binaryConst.R_VAL == removedItem.TAIL){
+    						Arc newArc = new Arc(binaryConst.L_VAL, binaryConst.R_VAL, constraint);
+    						queueOfArc.add(newArc);
+    					}	
+		    		}	
+		    	}
+	    	}
+    	}  
     }
     
+    /*
+     * Helper method
+     */
+    private static boolean removeInconsistentValues (List<MeetingDomain> domains, Arc arc) {
+    	Set<LocalDate> result = new HashSet<>();
+    	MeetingDomain tailDomain = domains.get(arc.TAIL);
+    	MeetingDomain headDomain = domains.get(arc.HEAD);
+    	DateConstraint constraint = arc.CONSTRAINT;
+    	for(LocalDate tailVal : tailDomain.domainValues) {
+    		for(LocalDate headVal : headDomain.domainValues) {
+    			if(constraint.ARITY == 2) {
+    			BinaryDateConstraint newBinaryConstraint = (BinaryDateConstraint)constraint;
+	    			if(newBinaryConstraint.isSatisfiedBy(tailVal, headVal)) {
+	    				result.add(tailVal);
+	    				break;
+	    			}
+    			}
+    		}
+    	}
+    	boolean changed = result.size() != tailDomain.domainValues.size();
+    	tailDomain.domainValues = result;
+    	return changed;	
+    }
     /**
      * Private helper class organizing Arcs as defined by the AC-3 algorithm, useful for implementing the
      * arcConsistency method.
