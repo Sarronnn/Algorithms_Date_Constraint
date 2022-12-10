@@ -28,17 +28,24 @@ public class CSPSolver {
      *         indexed by the variable they satisfy, or null if no solution exists.
      */
     public static List<LocalDate> solve (int nMeetings, LocalDate rangeStart, LocalDate rangeEnd, Set<DateConstraint> constraints) {
-        // [!] TODO!
-    
-    	//List<MeetingDomain> domainForEachMeeting = new ArrayList<>();
-    	//MeetingDomain domain =  new MeetingDomain(rangeStart, rangeEnd);
     	List<LocalDate> meetings = new ArrayList<>();
     	List<MeetingDomain> domains = CSPTests.generateDomains(nMeetings, rangeStart, rangeEnd);
-        return backTrack(domains, meetings, nMeetings, constraints );
+        nodeConsistency(domains, constraints);
+        arcConsistency(domains, constraints);
+    	return cspSolver(domains, meetings, nMeetings, constraints );   
     }
     
-    //recursiveBacktracking
-    private static List<LocalDate> backTrack (List<MeetingDomain> domainForEachMeeting, List<LocalDate> meetingsAssigned,int nMeetings, Set<DateConstraint> constraints){
+    
+    /**
+     * Helper method that backTracks our CSP
+     * @param domainForEachMeeting: List of meeting domains for our meetings
+     * @param meetingsAssigned: List of dates assigned to our meetings
+     * @param nMeetings: The number of meetings we have
+     * @param constraints: The set of date constraints for each of our meetings
+     * @return A list of dates that satisfies each of the constraints for each of the n meetings,
+     *         indexed by the variable they satisfy, or null if no solution exists.
+     */
+    private static List<LocalDate> cspSolver (List<MeetingDomain> domainForEachMeeting, List<LocalDate> meetingsAssigned,int nMeetings, Set<DateConstraint> constraints){
     	if(meetingsAssigned.size() == nMeetings && isConsistent(constraints, meetingsAssigned)) {
     		return meetingsAssigned;
     	}	
@@ -46,10 +53,7 @@ public class CSPSolver {
 	    	for(LocalDate domainValue : thisMeeting.domainValues) {
 	    		meetingsAssigned.add(domainValue);
 	    		if(isConsistent(constraints, meetingsAssigned)) {
-	    				//add first and then check the consistent, if true, rest of pseudo is the same
-	    				//else, remove
-	    				//meetingsAssigned.add(domainValue);
-	    			List<LocalDate> result = backTrack(domainForEachMeeting, meetingsAssigned, nMeetings, constraints);
+	    			List<LocalDate> result = cspSolver(domainForEachMeeting, meetingsAssigned, nMeetings, constraints);
 	    			if(result != null) {
 	    				return result;
 	    			}	
@@ -59,38 +63,35 @@ public class CSPSolver {
     	}
     	return null;	
     }
+    
     /**
-     * Private method to check consistency of our meeting with the constraints 
-     * @param constraints
-     * @param meeting
-     * @return
+     * Helper Method to check consistency of our meeting with the constraints
+     * @param constraints: Set of date constraints for our meetings
+     * @param meetings: List of local dates for our meetings
+     * @return TRUE OR FALSE depending on if the meeting dates are consistent with the constraints
      */
-    private static boolean isConsistent(Set<DateConstraint> constraints, List<LocalDate> meeting) {
+    private static boolean isConsistent(Set<DateConstraint> constraints, List<LocalDate> meetings) {
     	for(DateConstraint constraint : constraints) {
-    		//if Urnary
+    		//if it is a urnary constraint
     		if(constraint.ARITY == 1) {
     			UnaryDateConstraint newUnaryConst = (UnaryDateConstraint)constraint;
     			LocalDate r = newUnaryConst.R_VAL; 
     			int l = constraint.L_VAL;
-    			//assignment doesn't satisfy constraints
-    			if(meeting.size() > l) {
-	    			if(!(constraint.isSatisfiedBy(meeting.get(l), r))) {
-	    	
+    			if(meetings.size() > l) {
+	    			if(!(constraint.isSatisfiedBy(meetings.get(l), r))) {
 	    				return false;
 	    			}
     			}
     		}
-    		//if Binary
+    		//if it is a binary constraint
     		if(constraint.ARITY == 2) {
     			BinaryDateConstraint newBinaryConst = (BinaryDateConstraint)constraint;
     			int r = newBinaryConst.R_VAL;
     			int l = constraint.L_VAL;
-    			//assignment doesn't satisfy constraints
-    			if(meeting.size() > r && meeting.size() >l) {
-	    			if(!(constraint.isSatisfiedBy(meeting.get(l), meeting.get(r)))) {
+    			if(meetings.size() > r && meetings.size() >l) {
+	    			if(!(constraint.isSatisfiedBy(meetings.get(l), meetings.get(r)))) {
 	    				return false;
 	    			}
-    				
     			}
     		}		
     	}
@@ -121,7 +122,6 @@ public class CSPSolver {
 	    			result.add(date);
 	    		}	
 	    	} 
-    		
 	    	newDomain.domainValues = result;
 	    	result = new HashSet<>();
     		}
@@ -137,16 +137,16 @@ public class CSPSolver {
      *     the *binary* constraints using the AC-3 algorithm! 
      */
     public static void arcConsistency (List<MeetingDomain> varDomains, Set<DateConstraint> constraints) {
-        
     	Set<Arc> queueOfArc = new HashSet<>();
-    	//Generate arcs for each date constraint
+    	//Here, we generate arcs for each date constraint
     	for(DateConstraint constraint:constraints) {
     		if(constraint.ARITY == 2) {
     			BinaryDateConstraint newBinaryConstraint = (BinaryDateConstraint)constraint;
     			int l = newBinaryConstraint.L_VAL;
     			int r = newBinaryConstraint.R_VAL;
     			Arc arc1 = new Arc(l, r, newBinaryConstraint);
-    			Arc arc2 = new Arc(r, l, newBinaryConstraint);
+    			BinaryDateConstraint reversed = newBinaryConstraint.getReverse();
+    			Arc arc2 = new Arc(r, l, reversed);
     			queueOfArc.add(arc1);
     			queueOfArc.add(arc2);	
     		}
@@ -158,8 +158,13 @@ public class CSPSolver {
 		    	for(DateConstraint constraint : constraints) {
 		    		if(constraint.ARITY == 2) {
     					BinaryDateConstraint binaryConst = (BinaryDateConstraint)constraint;
-    					if(binaryConst.L_VAL == removedItem.TAIL || binaryConst.R_VAL == removedItem.TAIL){
-    						Arc newArc = new Arc(binaryConst.L_VAL, binaryConst.R_VAL, constraint);
+    					BinaryDateConstraint reversed = binaryConst.getReverse();
+    					if(binaryConst.L_VAL == removedItem.TAIL) {
+	    					Arc newArc = new Arc(binaryConst.R_VAL, removedItem.TAIL, reversed);
+							queueOfArc.add(newArc);
+    					}
+    					if(binaryConst.R_VAL == removedItem.TAIL){
+    						Arc newArc = new Arc(binaryConst.L_VAL, removedItem.TAIL, constraint);
     						queueOfArc.add(newArc);
     					}	
 		    		}	
@@ -168,8 +173,11 @@ public class CSPSolver {
     	}  
     }
     
-    /*
-     * Helper method
+    /**
+     * Helper Method to check if there are inconsistent values
+     * @param domains: List of our meeting domains
+     * @param arc: Our Arc as defined by the AC-3 algorithm
+     * @return TRUE OR FALSE based on if we removed inconsistent Values from our local dates
      */
     private static boolean removeInconsistentValues (List<MeetingDomain> domains, Arc arc) {
     	Set<LocalDate> result = new HashSet<>();
@@ -191,6 +199,7 @@ public class CSPSolver {
     	tailDomain.domainValues = result;
     	return changed;	
     }
+    
     /**
      * Private helper class organizing Arcs as defined by the AC-3 algorithm, useful for implementing the
      * arcConsistency method.
